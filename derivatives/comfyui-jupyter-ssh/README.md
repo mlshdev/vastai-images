@@ -33,7 +33,7 @@ graph TB
         PORTAL[portal-aio/]
     end
     
-    subgraph "ROOT Directory"
+    subgraph "ROOT Directory Structure"
         ROOT --> ETC[etc/]
         ROOT --> OPT[opt/]
         
@@ -63,84 +63,95 @@ graph TB
         SUPERVISOR_SCRIPTS --> COMFYUI_SH[comfyui.sh]
     end
     
-    subgraph "portal-aio Directory"
+    subgraph "Portal AIO Components"
         PORTAL --> CADDY_MGR[caddy_manager/]
         PORTAL --> TUNNEL_MGR[tunnel_manager/]
         PORTAL --> PORTAL_APP[portal/]
         PORTAL --> REQUIREMENTS[requirements.txt]
     end
-```
+    
+    style ROOT fill:#e1f5fe
+    style PORTAL fill:#f3e5f5
+    style ETC fill:#fff3e0
+    style OPT fill:#e8f5e8
 
 ### Service Dependencies Diagram
 
 ```mermaid
 flowchart TD
-    subgraph "Container Startup"
+    subgraph "Container Startup Process"
         ENTRY[entrypoint.sh]
         BOOT[boot_default.sh]
         VASTBOOT[vast_boot.d scripts]
         SUPERVISOR[supervisord]
     end
     
-    subgraph "Supervisor Services"
-        CADDY[Caddy - HTTPS Proxy]
+    subgraph "Managed Services"
         JUPYTER[JupyterLab]
         COMFYUI[ComfyUI]
         PORTAL[Instance Portal]
         TUNNEL[Tunnel Manager]
+        CADDY[Caddy - HTTPS Proxy]
     end
     
     subgraph "External Access"
         HTTPS[HTTPS/443]
         SSH[SSH/22]
-        DIRECT[Direct Ports]
     end
     
     ENTRY --> BOOT
     BOOT --> VASTBOOT
     VASTBOOT --> SUPERVISOR
     
-    SUPERVISOR --> CADDY
     SUPERVISOR --> JUPYTER
     SUPERVISOR --> COMFYUI
     SUPERVISOR --> PORTAL
     SUPERVISOR --> TUNNEL
+    SUPERVISOR --> CADDY
+    
+    JUPYTER --> CADDY
+    COMFYUI --> CADDY
+    PORTAL --> CADDY
     
     CADDY --> HTTPS
-    CADDY --> JUPYTER
-    CADDY --> COMFYUI
-    CADDY --> PORTAL
     
     TUNNEL --> CADDY
     
     SSH --> JUPYTER
     SSH --> COMFYUI
+    
+    style ENTRY fill:#e3f2fd
+    style SUPERVISOR fill:#fff3e0
+    style CADDY fill:#e8f5e8
+    style HTTPS fill:#fce4ec
+    style JUPYTER fill:#e1f5fe
+    style COMFYUI fill:#f3e5f5
 ```
 
 ### Build Process Diagram
 
 ```mermaid
 flowchart LR
-    subgraph "Multi-Stage Build"
-        UV[Stage 1: uv binary]
-        CADDY_BUILD[Stage 2: Caddy build]
-        MAIN[Stage 3: Main image]
+    subgraph "Multi-Stage Build Process"
+        UV[Stage 1: UV Binary]
+        CADDY_BUILD[Stage 2: Caddy Build]
+        MAIN[Stage 3: Main Image]
     end
     
-    subgraph "Stage 1"
+    subgraph "Stage 1: UV Binary"
         UV_IMAGE[ghcr.io/astral-sh/uv:latest]
         UV_BIN[/uv, /uvx binaries]
         UV_IMAGE --> UV_BIN
     end
     
-    subgraph "Stage 2"
+    subgraph "Stage 2: Caddy Build"
         GO_IMAGE[golang:1.23.4-bookworm]
         XCADDY[xcaddy build]
         CADDY_BIN[caddy binary]
         GO_IMAGE --> XCADDY --> CADDY_BIN
     end
     
-    subgraph "Stage 3"
+    subgraph "Stage 3: Main Image Assembly"
         CUDA_IMAGE[nvidia/cuda:13.0.2-cudnn-runtime-ubuntu24.04]
         APT[apt packages + SSH]
         PYTHON[Python venv + deps]
@@ -157,6 +168,13 @@ flowchart LR
     
     UV_BIN --> MAIN
     CADDY_BIN --> MAIN
+    
+    style UV fill:#e3f2fd
+    style CADDY_BUILD fill:#fff3e0
+    style MAIN fill:#e8f5e8
+    style UV_BIN fill:#e1f5fe
+    style CADDY_BIN fill:#f3e5f5
+    style CONFIG fill:#fce4ec
 ```
 
 ---
