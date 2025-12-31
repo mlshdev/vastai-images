@@ -1,5 +1,6 @@
 # Custom Dockerfile for vast.ai with JupyterLab, ComfyUI, and SSH access
 # Built from scratch using nvidia/cuda:13.0.2-cudnn-runtime-ubuntu24.04
+# Target platform: linux/amd64 only
 #
 # This image provides:
 # - JupyterLab with ipykernel support
@@ -7,27 +8,27 @@
 # - SSH server for remote access
 # - Vast.ai platform compatibility (Caddy for HTTPS, Cloudflared tunnels)
 # - TensorRT and deep learning dependencies via uv
+# - AWS CLI and Hetzner CLI for cloud management
 #
 # Build with: docker buildx build --platform linux/amd64 -t comfyui-jupyter-ssh .
 
 ### Stage 1: Copy uv from distroless image (as per requirements)
-FROM ghcr.io/astral-sh/uv:latest AS uv_builder
+FROM --platform=linux/amd64 ghcr.io/astral-sh/uv:latest AS uv_builder
 
 ### Stage 2: Build Caddy with single port TLS redirect for vast.ai HTTPS support
-FROM --platform=$BUILDPLATFORM golang:1.23.4-bookworm AS caddy_builder
+FROM --platform=linux/amd64 golang:1.23.4-bookworm AS caddy_builder
 
 # Install xcaddy for the current architecture
 RUN go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
 
 # Build Caddy with TLS redirect support
 ENV CGO_ENABLED=0
-ARG TARGETARCH
-RUN GOOS=linux GOARCH=$TARGETARCH xcaddy build \
+RUN GOOS=linux GOARCH=amd64 xcaddy build \
     --with github.com/caddyserver/caddy/v2=github.com/ai-dock/caddy/v2@httpredirect \
     --with github.com/caddyserver/replace-response
 
 ### Stage 3: Main Build
-FROM nvidia/cuda:13.0.2-cudnn-runtime-ubuntu24.04 AS main_build
+FROM --platform=linux/amd64 nvidia/cuda:13.0.2-cudnn-runtime-ubuntu24.04 AS main_build
 
 # Maintainer details
 LABEL org.opencontainers.image.source="https://github.com/mlshdev/vastai-images"
@@ -63,10 +64,9 @@ ENV UV_PYTHON_BIN_DIR=/.uv/python_bin
 ENV UV_PYTHON_INSTALL_DIR=/.uv/python_install
 
 # Create a useful base environment with commonly used tools
-ARG TARGETARCH
 RUN \
     set -euo pipefail && \
-    ([ "$TARGETARCH" = "arm64" ] && echo "Skipping i386 architecture for ARM builds" || dpkg --add-architecture i386) && \
+    dpkg --add-architecture i386 && \
     apt-get update && \
     apt-get upgrade -y && \
     apt-get install --no-install-recommends -y \
@@ -206,7 +206,6 @@ COPY ./portal-aio /opt/portal-aio
 COPY --from=caddy_builder /go/caddy /opt/portal-aio/caddy_manager/caddy
 
 # Install cloudflared and setup portal-aio for vast.ai HTTPS and tunnels
-ARG TARGETARCH
 RUN \
     set -euo pipefail && \
     chown -R 0:0 /opt/portal-aio && \
@@ -219,7 +218,7 @@ RUN \
     deactivate && \
     # Install cloudflared
     mkdir -p /opt/portal-aio/tunnel_manager && \
-    wget -O /opt/portal-aio/tunnel_manager/cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${TARGETARCH} && \
+    wget -O /opt/portal-aio/tunnel_manager/cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 && \
     chmod +x /opt/portal-aio/tunnel_manager/cloudflared && \
     # Create symlinks for easy access
     ln -s /opt/portal-aio/caddy_manager/caddy /opt/instance-tools/bin/caddy && \
@@ -324,20 +323,26 @@ RUN \
 # Create supervisor log directory
 RUN mkdir -p /var/log/supervisor
 
-# Install Syncthing for file synchronization
-ARG TARGETARCH
+# Install AWS CLI (https://github.com/aws/aws-cli)
 RUN \
     set -euo pipefail && \
-    SYNCTHING_VERSION="$(curl -fsSL "https://api.github.com/repos/syncthing/syncthing/releases/latest" | jq -r '.tag_name' | sed 's/[^0-9\.\-]*//g')" && \
-    SYNCTHING_URL="https://github.com/syncthing/syncthing/releases/download/v${SYNCTHING_VERSION}/syncthing-linux-${TARGETARCH}-v${SYNCTHING_VERSION}.tar.gz" && \
-    mkdir -p /opt/syncthing/config && \
-    mkdir -p /opt/syncthing/data && \
-    wget -O /opt/syncthing.tar.gz "$SYNCTHING_URL" && \
-    (cd /opt && tar -zxf syncthing.tar.gz -C /opt/syncthing/ --strip-components=1) && \
-    chown -R user:root /opt/syncthing && \
-    rm -f /opt/syncthing.tar.gz
+    curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip" && \
+    cd /tmp && \
+    unzip awscliv2.zip && \
+    ./aws/install && \
+    rm -rf /tmp/awscliv2.zip /tmp/aws
+
+# Install Hetzner CLI (https://github.com/hetznercloud/cli)
+RUN \
+    set -euo pipefail && \
+    HCLOUD_VERSION="$(curl -fsSL "https://api.github.com/repos/hetznercloud/cli/releases/latest" | jq -r '.tag_name' | sed 's/v//')" && \
+    curl -fsSL "https://github.com/hetznercloud/cli/releases/download/v${HCLOUD_VERSION}/hcloud-linux-amd64.tar.gz" -o /tmp/hcloud.tar.gz && \
+    tar -xzf /tmp/hcloud.tar.gz -C /usr/local/bin hcloud && \
+    chmod +x /usr/local/bin/hcloud && \
+    rm -f /tmp/hcloud.tar.gz
 
 # Install ComfyUI (as per requirements)
+# ComfyUI is installed at /workspace/ComfyUI for easy access (synced from /opt/workspace-internal)
 ARG COMFYUI_REF=master
 RUN \
     set -euo pipefail && \
@@ -351,10 +356,11 @@ RUN \
     uv pip install --no-cache-dir -r requirements.txt && \
     # Avoid Jupyter directory display bug
     ln -s /opt/workspace-internal/ComfyUI/models/checkpoints /opt/workspace-internal/ComfyUI/models/ckpt && \
-    # Install critical custom nodes
+    # Install ComfyUI-Manager from Comfy-Org (official)
     cd /opt/workspace-internal/ComfyUI/custom_nodes && \
-    git clone https://github.com/ltdrdata/ComfyUI-Manager && \
+    git clone https://github.com/Comfy-Org/ComfyUI-Manager && \
     uv pip install -r ComfyUI-Manager/requirements.txt && \
+    # Install ComfyUI_essentials
     git clone https://github.com/cubiq/ComfyUI_essentials && \
     uv pip install -r ComfyUI_essentials/requirements.txt && \
     mkdir -p /opt/workspace-internal/ComfyUI/user/default/ComfyUI-Manager/components && \
@@ -370,6 +376,9 @@ RUN \
 
 # Copy configuration files from ROOT directory (supervisor configs, scripts, etc.)
 COPY ./ROOT/ /
+
+# Create symlink for easy ComfyUI access (will be synced to /workspace on first boot)
+RUN ln -sf /opt/workspace-internal/ComfyUI /ComfyUI
 
 # Set environment variables
 ENV PATH=/opt/instance-tools/bin:${PATH}
