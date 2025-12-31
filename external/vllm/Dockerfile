@@ -10,7 +10,6 @@ LABEL org.opencontainers.image.description="vLLM image suitable for Vast.ai."
 LABEL maintainer="Vast.ai Inc <contact@vast.ai>"
 
 ### Convert non-Vast image to more closely resemble images derived from vastai/base-image ###
-SHELL ["/bin/bash", "-c"]
 ENV DATA_DIRECTORY=/workspace
 ENV WORKSPACE=/workspace
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
@@ -25,11 +24,10 @@ COPY --from=vast_base_image /opt/portal-aio/caddy_manager/caddy /opt/portal-aio/
 COPY --from=base_image_source tools/convert-non-vast-image.sh /tmp/convert-non-vast-image.sh
 
 ARG TARGETARCH
-RUN \
-    set -euo pipefail && \
+RUN /bin/bash -c 'set -euo pipefail && \
     chmod +x /tmp/convert-non-vast-image.sh && \
     /tmp/convert-non-vast-image.sh && \
-    rm /tmp/convert-non-vast-image.sh
+    rm /tmp/convert-non-vast-image.sh'
 
 ### Begin vLLM specific configuration ###
 
@@ -43,14 +41,12 @@ RUN \
     python3 -m ipykernel install --name "vllm" --display-name "vLLM"
 
 # Use familiar workspace
-RUN \
-    set -euo pipefail && \
-    mv /vllm-workspace /opt/workspace-internal
+RUN /bin/bash -c 'set -euo pipefail && \
+    mv /vllm-workspace /opt/workspace-internal'
 
 # Add Ray dashboard
-RUN \
-    set -euo pipefail && \
-    uv pip install --system --no-cache-dir ray[default]
+RUN /bin/bash -c 'set -euo pipefail && \
+    uv pip install --system --no-cache-dir ray[default]'
 
 ENTRYPOINT ["/opt/instance-tools/bin/entrypoint.sh"]
 CMD []

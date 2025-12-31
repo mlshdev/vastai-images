@@ -12,8 +12,7 @@ COPY ./ROOT /
 
 # Install a basic GPU accelerated graphical environment
 ARG TARGETARCH
-RUN \
-    set -euo pipefail && \
+RUN /bin/bash -c 'set -euo pipefail && \
     add-apt-repository ppa:pipewire-debian/pipewire-upstream -y && \
     add-apt-repository ppa:pipewire-debian/wireplumber-upstream -y && \
     apt-get update && \
@@ -210,25 +209,22 @@ RUN \
     else \
         apt-get install --no-install-recommends -y "${BASE_PACKAGES[@]}"; \
     fi && \
-    ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
+    ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html'
 
 # Install latest Vulkan version
-RUN \
-    set -euo pipefail && \
-    VULKAN_API_VERSION=$(dpkg -s libvulkan1 | grep -oP 'Version: [0-9|\.]+' | grep -oP '[0-9]+(\.[0-9]+)(\.[0-9]+)') && \
+RUN /bin/bash -c 'set -euo pipefail && \
+    VULKAN_API_VERSION=$(dpkg -s libvulkan1 | grep -oP "Version: [0-9|\.]+'" | grep -oP "[0-9]+(\.[0-9]+)(\.[0-9]+)") && \
     mkdir -pm755 /etc/vulkan/icd.d/ && \
-    printf '{"file_format_version" : "1.0.0","ICD": {"library_path": "libGLX_nvidia.so.0","api_version" : "%s"}}' $VULKAN_API_VERSION > /etc/vulkan/icd.d/nvidia_icd.json
+    printf "{\"file_format_version\" : \"1.0.0\",\"ICD\": {\"library_path\": \"libGLX_nvidia.so.0\",\"api_version\" : \"%s\"}}" $VULKAN_API_VERSION > /etc/vulkan/icd.d/nvidia_icd.json'
 
 # EGL Config
-RUN \
-    set -euo pipefail && \
+RUN /bin/bash -c 'set -euo pipefail && \
     mkdir -pm755 /usr/share/glvnd/egl_vendor.d/ && \
-    printf '{"file_format_version" : "1.0.0","ICD": {"library_path": "libEGL_nvidia.so.0"}}' > /usr/share/glvnd/egl_vendor.d/10_nvidia.json
+    printf "{\"file_format_version\" : \"1.0.0\",\"ICD\": {\"library_path\": \"libEGL_nvidia.so.0\"}}" > /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
 
 # Install Virtual GL
-RUN \
-    set -euo pipefail && \
-    VIRTUALGL_VERSION="$(curl -fsSL "https://api.github.com/repos/VirtualGL/virtualgl/releases/latest" | jq -r '.tag_name' | sed 's/[^0-9\.\-]*//g')" && \
+RUN /bin/bash -c 'set -euo pipefail && \
+    VIRTUALGL_VERSION="$(curl -fsSL "https://api.github.com/repos/VirtualGL/virtualgl/releases/latest" | jq -r ".tag_name" | sed "s/[^0-9\.\-]*//g")" && \
     cd /tmp && \
     curl -fsSL -O "https://github.com/VirtualGL/virtualgl/releases/download/${VIRTUALGL_VERSION}/virtualgl_${VIRTUALGL_VERSION}_${TARGETARCH}.deb" && \
     apt-get install -y ./virtualgl_${VIRTUALGL_VERSION}_${TARGETARCH}.deb && \
@@ -239,12 +235,11 @@ RUN \
         chmod -f u+s /usr/lib32/libvglfaker.so /usr/lib32/libvglfaker-nodl.so /usr/lib32/libvglfaker-opencl.so /usr/lib32/libdlfaker.so /usr/lib32/libgefaker.so && \
         chmod -f u+s /usr/lib/i386-linux-gnu/libvglfaker.so /usr/lib/i386-linux-gnu/libvglfaker-nodl.so /usr/lib/i386-linux-gnu/libvglfaker-opencl.so /usr/lib/i386-linux-gnu/libdlfaker.so /usr/lib/i386-linux-gnu/libgefaker.so; \
     fi && \
-    rm -f /tmp/virtualgl*
+    rm -f /tmp/virtualgl*'
 
 # NVIDIA VAAPI
-RUN \
-    set -euo pipefail && \
-    NVIDIA_VAAPI_DRIVER_VERSION="$(curl -fsSL "https://api.github.com/repos/elFarto/nvidia-vaapi-driver/releases/latest" | jq -r '.tag_name' | sed 's/[^0-9\.\-]*//g')" && \
+RUN /bin/bash -c 'set -euo pipefail && \
+    NVIDIA_VAAPI_DRIVER_VERSION="$(curl -fsSL "https://api.github.com/repos/elFarto/nvidia-vaapi-driver/releases/latest" | jq -r ".tag_name" | sed "s/[^0-9\.\-]*//g")" && \
     cd /tmp && \
     curl -fsSL "https://github.com/elFarto/nvidia-vaapi-driver/archive/v${NVIDIA_VAAPI_DRIVER_VERSION}.tar.gz" | tar -xzf - && \
     mv -f nvidia-vaapi-driver* nvidia-vaapi-driver && \
@@ -253,20 +248,17 @@ RUN \
     meson install -C build && \
     rm -rf /tmp/* && \
     echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf && \
-    echo "/usr/local/nvidia/lib64" >> /etc/ld.so.conf.d/nvidia.conf
+    echo "/usr/local/nvidia/lib64" >> /etc/ld.so.conf.d/nvidia.conf'
 
 # Install Selkies
 # AMD64 only until fix
-RUN \
-    set -euo pipefail && \
+RUN /bin/bash -c 'set -euo pipefail && \
     cd /opt && \
-    SELKIES_VERSION="$(curl -fsSL "https://api.github.com/repos/selkies-project/selkies-gstreamer/releases/latest" | jq -r '.tag_name' | sed 's/[^0-9\.\-]*//g')" && \
-    cd /opt && curl -fsSL "https://github.com/selkies-project/selkies-gstreamer/releases/download/v${SELKIES_VERSION}/gstreamer-selkies_gpl_v${SELKIES_VERSION}_ubuntu$(grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | tr -d '\"')_$(dpkg --print-architecture).tar.gz" | tar -xzf - && \
+    SELKIES_VERSION="$(curl -fsSL "https://api.github.com/repos/selkies-project/selkies-gstreamer/releases/latest" | jq -r ".tag_name" | sed "s/[^0-9\.\-]*//g")" && \
+    cd /opt && curl -fsSL "https://github.com/selkies-project/selkies-gstreamer/releases/download/v${SELKIES_VERSION}/gstreamer-selkies_gpl_v${SELKIES_VERSION}_ubuntu$(grep "^VERSION_ID=" /etc/os-release | cut -d= -f2 | tr -d "\"")_$(dpkg --print-architecture).tar.gz" | tar -xzf - && \
     cd /tmp && curl -O -fsSL "https://github.com/selkies-project/selkies-gstreamer/releases/download/v${SELKIES_VERSION}/selkies_gstreamer-${SELKIES_VERSION}-py3-none-any.whl" && /usr/bin/pip3 install --no-cache-dir --force-reinstall "selkies_gstreamer-${SELKIES_VERSION}-py3-none-any.whl" "websockets<14.0" && rm -f "selkies_gstreamer-${SELKIES_VERSION}-py3-none-any.whl" && \
     cd /opt && curl -fsSL "https://github.com/selkies-project/selkies-gstreamer/releases/download/v${SELKIES_VERSION}/selkies-gstreamer-web_v${SELKIES_VERSION}.tar.gz" | tar -xzf - && \
-    cd /tmp && curl -o selkies-js-interposer.deb -fsSL "https://github.com/selkies-project/selkies-gstreamer/releases/download/v${SELKIES_VERSION}/selkies-js-interposer_v${SELKIES_VERSION}_ubuntu$(grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | tr -d '\"')_$(dpkg --print-architecture).deb" && apt-get update && apt-get install --no-install-recommends -y ./selkies-js-interposer.deb && rm -f selkies-js-interposer.deb
-    
-    #curl -fsSL "https://github.com/selkies-project/selkies-gstreamer/releases/download/v${SELKIES_VERSION}/selkies-gstreamer-portable-v${SELKIES_VERSION}_amd64.tar.gz" | tar -xzf -
+    cd /tmp && curl -o selkies-js-interposer.deb -fsSL "https://github.com/selkies-project/selkies-gstreamer/releases/download/v${SELKIES_VERSION}/selkies-js-interposer_v${SELKIES_VERSION}_ubuntu$(grep "^VERSION_ID=" /etc/os-release | cut -d= -f2 | tr -d "\"")_$(dpkg --print-architecture).deb" && apt-get update && apt-get install --no-install-recommends -y ./selkies-js-interposer.deb && rm -f selkies-js-interposer.deb'
 
 ENV CATALINA_BASE=/opt/tomcat9
 ENV CATALINA_HOME=/opt/tomcat9
@@ -283,8 +275,7 @@ RUN \
     chmod -R 755 /opt/apache-tomcat-9.0.104
 
 # Guacamole - TODO build stage
-RUN \
-    set -euo pipefail && \
+RUN /bin/bash -c 'set -euo pipefail && \
     apt-get install --no-install-recommends -y \
         libcairo2-dev \
         libjpeg-turbo8-dev \
@@ -303,7 +294,7 @@ RUN \
         libvorbis-dev \
         libwebp-dev && \
     cd /tmp && \
-    sed -i 's/port="8080"/port="16200" address="127.0.0.1"/' /opt/tomcat9/conf/server.xml && \
+    sed -i "s/port=\"8080\"/port=\"16200\" address=\"127.0.0.1\"/" /opt/tomcat9/conf/server.xml && \
     wget -O /opt/tomcat9/webapps/guacamole.war https://downloads.apache.org/guacamole/1.5.5/binary/guacamole-1.5.5.war && \
     chown tomcat:tomcat /opt/tomcat9/webapps/guacamole.war && \
     wget https://downloads.apache.org/guacamole/1.5.5/source/guacamole-server-1.5.5.tar.gz && \
@@ -313,18 +304,17 @@ RUN \
     make && \
     make install && \
     mkdir -p /etc/guacamole/{extensions,lib} && \
-    wget -O  /etc/guacamole/extensions/guacamole-auth-noauth-1.5.5.jar \
+    wget -O /etc/guacamole/extensions/guacamole-auth-noauth-1.5.5.jar \
         https://github.com/GauriSpears/guacamole-noauth/releases/download/1.5.5/guacamole-auth-noauth-1.5.5.jar && \
     echo "guacd-hostname: localhost" > /etc/guacamole/guacamole.properties && \
     echo "guacd-port: 4822" >> /etc/guacamole/guacamole.properties && \
     echo "noauth-config: /etc/guacamole/noauth-config.xml" >> /etc/guacamole/guacamole.properties && \
     touch /etc/guacamole/noauth-config.xml && \
     chown -R tomcat:tomcat /etc/guacamole && \
-    chmod -R 755 /etc/guacamole
+    chmod -R 755 /etc/guacamole'
 
 # Install DE
-RUN \
-    set -euo pipefail && \
+RUN /bin/bash -c 'set -euo pipefail && \
     apt-get update && apt-get install --install-recommends -y \
     kde-baseapps \
     plasma-desktop \
@@ -471,23 +461,22 @@ RUN \
 ENV XDG_RUNTIME_DIR="/run/user/1001"
 ENV DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/1001/dbus/session_bus_socket"
 USER user
-RUN \
-    set -euo pipefail && \
+RUN /bin/bash -c 'set -euo pipefail && \
     mkdir -p "$XDG_RUNTIME_DIR/dbus" && \
     mkdir -p "/home/user/.config/dbus" && \
-    echo '<!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-BUS Bus Configuration 1.0//EN" "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">\
+    echo "<!DOCTYPE busconfig PUBLIC \"-//freedesktop//DTD D-BUS Bus Configuration 1.0//EN\" \"http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd\">\
     <busconfig>\
         <type>session</type>\
         <keep_umask/>\
         <listen>unix:path=/run/user/1001/dbus/session_bus_socket</listen>\
         <auth>EXTERNAL</auth>\
         <allow_anonymous/>\
-        <policy context="default">\
-            <allow send_destination="*" eavesdrop="true"/>\
-            <allow eavesdrop="true"/>\
-            <allow own="*"/>\
+        <policy context=\"default\">\
+            <allow send_destination=\"*\" eavesdrop=\"true\"/>\
+            <allow eavesdrop=\"true\"/>\
+            <allow own=\"*\"/>\
         </policy>\
-    </busconfig>' > /home/user/.config/dbus/session-local.conf
+    </busconfig>" > /home/user/.config/dbus/session-local.conf'
 
 ENV DISPLAY=":20"
 ENV PIPEWIRE_LATENCY="128/48000"
