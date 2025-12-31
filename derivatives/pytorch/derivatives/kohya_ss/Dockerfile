@@ -14,7 +14,8 @@ COPY ./ROOT /
 ARG KOHYA_REF
 
 # Kohya's GUI provides some great install scripts for local use, but we will manually configure everything we need
-RUN /bin/bash -c '[[ -n "${KOHYA_REF}" ]] || { echo "Must specify KOHYA_REF" && exit 1; } && \
+RUN /bin/bash -c 'set -euo pipefail && \
+    [[ -n "${KOHYA_REF}" ]] || { echo "Must specify KOHYA_REF" && exit 1; } && \
     source /venv/main/bin/activate && \
     torch_version_pre="$(python -c "import torch; print (torch.__version__)")" && \
     pip install xformers torch==$PYTORCH_VERSION --index-url "${PYTORCH_INDEX_URL}" && \

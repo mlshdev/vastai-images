@@ -13,7 +13,8 @@ COPY ./ROOT /
 # Required or we will not build
 ARG OOBABOOGA_REF
 
-RUN /bin/bash -c '[[ -n "${OOBABOOGA_REF}" ]] || { echo "Must specify OOBABOOGA_REF" && exit 1; } && \
+RUN /bin/bash -c 'set -euo pipefail && \
+    [[ -n "${OOBABOOGA_REF}" ]] || { echo "Must specify OOBABOOGA_REF" && exit 1; } && \
     source /venv/main/bin/activate && \
     torch_version_pre="$(python -c "import torch; print (torch.__version__)")" && \
     pip install xformers torch==$PYTORCH_VERSION --index-url "${PYTORCH_INDEX_URL}" && \

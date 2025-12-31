@@ -213,7 +213,7 @@ RUN /bin/bash -c 'set -euo pipefail && \
 
 # Install latest Vulkan version
 RUN /bin/bash -c 'set -euo pipefail && \
-    VULKAN_API_VERSION=$(dpkg -s libvulkan1 | grep -oP "Version: [0-9|\.]+'" | grep -oP "[0-9]+(\.[0-9]+)(\.[0-9]+)") && \
+    VULKAN_API_VERSION=$(dpkg -s libvulkan1 | grep -oP "Version: [0-9|\\.]+" | grep -oP "[0-9]+(\\.[0-9]+)(\\.[0-9]+)") && \
     mkdir -pm755 /etc/vulkan/icd.d/ && \
     printf "{\"file_format_version\" : \"1.0.0\",\"ICD\": {\"library_path\": \"libGLX_nvidia.so.0\",\"api_version\" : \"%s\"}}" $VULKAN_API_VERSION > /etc/vulkan/icd.d/nvidia_icd.json'
 
