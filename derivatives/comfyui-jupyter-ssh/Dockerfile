@@ -16,7 +16,7 @@
 FROM --platform=linux/amd64 ghcr.io/astral-sh/uv:latest AS uv_builder
 
 ### Stage 2: Build Caddy with single port TLS redirect for vast.ai HTTPS support
-FROM --platform=linux/amd64 golang:1.23.4-bookworm AS caddy_builder
+FROM --platform=linux/amd64 docker.io/library/golang:trixie AS caddy_builder
 
 # Install xcaddy for the current architecture
 RUN go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
@@ -28,7 +28,7 @@ RUN GOOS=linux GOARCH=amd64 xcaddy build \
     --with github.com/caddyserver/replace-response
 
 ### Stage 3: Main Build
-FROM --platform=linux/amd64 nvidia/cuda:13.0.2-cudnn-runtime-ubuntu24.04 AS main_build
+FROM --platform=linux/amd64 docker.io/nvidia/cuda:13.0.2-cudnn-runtime-ubuntu24.04 AS main_build
 
 # Maintainer details
 LABEL org.opencontainers.image.source="https://github.com/mlshdev/vastai-images"
@@ -70,90 +70,90 @@ RUN \
     apt-get update && \
     apt-get upgrade -y && \
     apt-get install --no-install-recommends -y \
-        # Base system utilities
-        acl \
-        bc \
-        ca-certificates \
-        gpg-agent \
-        software-properties-common \
-        locales \
-        lsb-release \
-        curl \
-        wget \
-        sudo \
-        moreutils \
-        nano \
-        vim \
-        less \
-        jq \
-        git \
-        git-lfs \
-        man \
-        tzdata \
-        # Display
-        fonts-dejavu \
-        fonts-freefont-ttf \
-        fonts-ubuntu \
-        ffmpeg \
-        libgl1 \
-        libglx-mesa0 \
-        # System monitoring & debugging
-        htop \
-        iotop \
-        strace \
-        libtcmalloc-minimal4 \
-        lsof \
-        procps \
-        psmisc \
-        nvtop \
-        # Infiniband support (if devices mounted)
-        rdma-core \
-        libibverbs1 \
-        ibverbs-providers \
-        libibumad3 \
-        librdmacm1 \
-        infiniband-diags \
-        # Development essentials
-        build-essential \
-        cmake \
-        ninja-build \
-        gdb \
-        libssl-dev \
-        # System Python
-        python3-full \
-        python3-dev \
-        python3-pip \
-        # Network utilities
-        netcat-traditional \
-        net-tools \
-        dnsutils \
-        iproute2 \
-        iputils-ping \
-        traceroute \
-        # File management
-        dos2unix \
-        rsync \
-        rclone \
-        zip \
-        unzip \
-        xz-utils \
-        zstd \
-        # Performance analysis
-        linux-tools-common \
-        cron \
-        # Required for cron logging
-        rsyslog \
-        # SSH server for remote access (required by problem statement)
-        openssh-server \
-        # OpenCL General
-        clinfo \
-        pocl-opencl-icd \
-        opencl-headers \
-        ocl-icd-dev \
-        ocl-icd-opencl-dev \
-        # Vulkan
-        libvulkan1 \
-        vulkan-tools && \
+    # Base system utilities
+    acl \
+    bc \
+    ca-certificates \
+    gpg-agent \
+    software-properties-common \
+    locales \
+    lsb-release \
+    curl \
+    wget \
+    sudo \
+    moreutils \
+    nano \
+    vim \
+    less \
+    jq \
+    git \
+    git-lfs \
+    man \
+    tzdata \
+    # Display
+    fonts-dejavu \
+    fonts-freefont-ttf \
+    fonts-ubuntu \
+    ffmpeg \
+    libgl1 \
+    libglx-mesa0 \
+    # System monitoring & debugging
+    htop \
+    iotop \
+    strace \
+    libtcmalloc-minimal4 \
+    lsof \
+    procps \
+    psmisc \
+    nvtop \
+    # Infiniband support (if devices mounted)
+    rdma-core \
+    libibverbs1 \
+    ibverbs-providers \
+    libibumad3 \
+    librdmacm1 \
+    infiniband-diags \
+    # Development essentials
+    build-essential \
+    cmake \
+    ninja-build \
+    gdb \
+    libssl-dev \
+    # System Python
+    python3-full \
+    python3-dev \
+    python3-pip \
+    # Network utilities
+    netcat-traditional \
+    net-tools \
+    dnsutils \
+    iproute2 \
+    iputils-ping \
+    traceroute \
+    # File management
+    dos2unix \
+    rsync \
+    rclone \
+    zip \
+    unzip \
+    xz-utils \
+    zstd \
+    # Performance analysis
+    linux-tools-common \
+    cron \
+    # Required for cron logging
+    rsyslog \
+    # SSH server for remote access (required by problem statement)
+    openssh-server \
+    # OpenCL General
+    clinfo \
+    pocl-opencl-icd \
+    opencl-headers \
+    ocl-icd-dev \
+    ocl-icd-opencl-dev \
+    # Vulkan
+    libvulkan1 \
+    vulkan-tools && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -234,7 +234,7 @@ RUN \
     uv venv --seed /venv/main -p ${PYTHON_VERSION} && \
     mkdir -p /venv/main/etc/conda/activate.d && \
     echo 'echo -e "\033[32mActivated virtual environment at \033[36m$(realpath $VIRTUAL_ENV)\033[0m"' \
-        > /venv/main/etc/conda/activate.d/environment.sh
+    > /venv/main/etc/conda/activate.d/environment.sh
 
 # Add venv activation script compatible with vast.ai patterns
 RUN cat <<'VENV_ACTIVATION_SCRIPT' > /venv/main/bin/activate
@@ -273,43 +273,43 @@ RUN \
     set -euo pipefail && \
     . /venv/main/bin/activate && \
     uv pip install \
-        wheel \
-        # PyTorch ecosystem
-        torch \
-        torchvision \
-        torchaudio \
-        # TensorRT for inference optimization (as per requirements)
-        tensorrt \
-        # ComfyUI and AI dependencies
-        numpy \
-        scipy \
-        pillow \
-        transformers \
-        accelerate \
-        safetensors \
-        einops \
-        aiohttp \
-        pyyaml \
-        # JupyterLab and notebook support (as per requirements)
-        jupyterlab \
-        jupyter \
-        ipykernel \
-        ipywidgets \
-        # Hugging Face CLI
-        "huggingface_hub[cli]" \
-        # Supervisor for process management
-        supervisor \
-        # Tensorboard for monitoring
-        tensorboard \
-        # File transfer
-        magic-wormhole && \
+    wheel \
+    # PyTorch ecosystem
+    torch \
+    torchvision \
+    torchaudio \
+    # TensorRT for inference optimization (as per requirements)
+    tensorrt \
+    # ComfyUI and AI dependencies
+    numpy \
+    scipy \
+    pillow \
+    transformers \
+    accelerate \
+    safetensors \
+    einops \
+    aiohttp \
+    pyyaml \
+    # JupyterLab and notebook support (as per requirements)
+    jupyterlab \
+    jupyter \
+    ipykernel \
+    ipywidgets \
+    # Hugging Face CLI
+    "huggingface_hub[cli]" \
+    # Supervisor for process management
+    supervisor \
+    # Tensorboard for monitoring
+    tensorboard \
+    # File transfer
+    magic-wormhole && \
     # Install Jupyter kernel
     python -m ipykernel install \
-        --name="main" \
-        --display-name="Python3 (main venv)" && \
+    --name="main" \
+    --display-name="Python3 (main venv)" && \
     python -m ipykernel install \
-        --name="python3" \
-        --display-name="Python3 (ipykernel)" && \
+    --name="python3" \
+    --display-name="Python3 (ipykernel)" && \
     deactivate
 
 # Install Jupyter kernel for system Python
@@ -317,8 +317,8 @@ RUN \
     set -euo pipefail && \
     pip install --no-cache-dir ipykernel && \
     python3 -m ipykernel install \
-        --name="system-python" \
-        --display-name="Python3 (System)"
+    --name="system-python" \
+    --display-name="Python3 (System)"
 
 # Create supervisor log directory
 RUN mkdir -p /var/log/supervisor
