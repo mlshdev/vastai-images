@@ -4,27 +4,27 @@ on:
   workflow_dispatch:
     inputs:
       comfyui_ref:
-        description: 'ComfyUI git ref (branch, tag, or commit)'
+        description: "ComfyUI git ref (branch, tag, or commit)"
         required: false
-        default: 'master'
+        default: "master"
       python_version:
-        description: 'Python version for the virtual environment'
+        description: "Python version for the virtual environment"
         required: false
-        default: '3.12'
+        default: "3.12"
       push_to_ghcr:
-        description: 'Push to GitHub Container Registry'
+        description: "Push to GitHub Container Registry"
         required: false
-        default: 'true'
+        default: true
         type: boolean
       push_to_dockerhub:
-        description: 'Push to Docker Hub'
+        description: "Push to Docker Hub"
         required: false
-        default: 'true'
+        default: true
         type: boolean
       image_tag:
-        description: 'Image tag (leave empty for auto-generated)'
+        description: "Image tag (leave empty for auto-generated)"
         required: false
-        default: ''
+        default: ""
 
 env:
   IMAGE_NAME: comfyui-jupyter-ssh
@@ -39,6 +39,21 @@ jobs:
       packages: write
 
     steps:
+      - name: Free up disk space
+        uses: endersonmenezes/free-disk-space@v3
+        with:
+          remove_android: true
+          remove_dotnet: true
+          remove_haskell: true
+          remove_tool_cache: false
+          remove_swap: true
+          remove_packages: "azure-cli google-cloud-cli microsoft-edge-stable google-chrome-stable firefox postgresql* temurin-* *llvm* mysql* dotnet-sdk-*"
+          remove_packages_one_command: true
+          remove_folders: "/usr/share/swift /usr/share/az* /usr/local/share/chromium /usr/local/share/powershell /usr/local/julia /usr/local/aws-cli /usr/local/aws-sam-cli /usr/share/gradle"
+          rm_cmd: "rmz" # Use 'rmz' for faster deletion (default: 'rm')
+          rmz_version: "3.1.1" # Required when rm_cmd is 'rmz'
+          testing: false
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
